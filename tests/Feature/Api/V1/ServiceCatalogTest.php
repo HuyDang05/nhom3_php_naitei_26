@@ -35,6 +35,31 @@ class ServiceCatalogTest extends TestCase
             ->assertJsonMissing(['id' => $service2->id]);
     }
 
+    public function test_can_paginate_services_six_per_page(): void
+    {
+        ServiceType::factory()->count(7)->create(['is_active' => true]);
+
+        $firstPage = $this->getJson(route('api.v1.services.index', [
+            'page' => 1,
+            'per_page' => 6,
+        ]));
+
+        $firstPage->assertOk()
+            ->assertJsonCount(6, 'data.data')
+            ->assertJsonPath('data.meta.current_page', 1)
+            ->assertJsonPath('data.meta.last_page', 2)
+            ->assertJsonPath('data.meta.per_page', 6)
+            ->assertJsonPath('data.meta.total', 7);
+
+        $this->getJson(route('api.v1.services.index', [
+            'page' => 2,
+            'per_page' => 6,
+        ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'data.data')
+            ->assertJsonPath('data.meta.current_page', 2);
+    }
+
     public function test_can_filter_services_by_category(): void
     {
         $category1 = ServiceCategory::factory()->create();

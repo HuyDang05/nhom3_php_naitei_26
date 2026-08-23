@@ -7,12 +7,16 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { localizeCategory, localizeService } from '../i18n/content';
 import { formatFee } from '../utils/format';
 
+const SERVICES_PER_PAGE = 6;
+
 export default function ServiceCatalog() {
     const { language, locale, t } = useLanguage();
     const [searchParams] = useSearchParams();
     const [services, setServices] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [meta, setMeta] = useState(null);
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
     const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('search') ?? '');
@@ -20,6 +24,7 @@ export default function ServiceCatalog() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(search);
+            setCurrentPage(1);
         }, 300);
         return () => clearTimeout(timer);
     }, [search]);
@@ -52,28 +57,53 @@ export default function ServiceCatalog() {
     useEffect(() => {
         let isMounted = true;
         setLoading(true);
-        fetchServices({ search: debouncedSearch, category_id: selectedCategory?.id || '' })
+        fetchServices({
+            search: debouncedSearch,
+            category_id: selectedCategory?.id || '',
+            page: currentPage,
+            per_page: SERVICES_PER_PAGE,
+        })
             .then((res) => {
                 if (isMounted) {
                     const payload = res.data?.data;
                     const list = Array.isArray(payload) ? payload : (payload?.data ?? []);
                     setServices(Array.isArray(list) ? list : []);
+                    setMeta(payload?.meta ?? null);
                     setLoading(false);
                 }
             })
             .catch(() => {
-                if (isMounted) setLoading(false);
+                if (isMounted) {
+                    setServices([]);
+                    setMeta(null);
+                    setLoading(false);
+                }
             });
         return () => {
             isMounted = false;
         };
-    }, [debouncedSearch, selectedCategory]);
+    }, [currentPage, debouncedSearch, selectedCategory]);
+
+    const lastPage = meta?.last_page ?? 1;
+
+    function selectCategory(category) {
+        setSelectedCategory(category);
+        setCurrentPage(1);
+    }
+
+    function changePage(page) {
+        if (page < 1 || page > lastPage || page === currentPage) {
+            return;
+        }
+
+        setCurrentPage(page);
+    }
 
     return (
         <main className="min-h-screen bg-[#F9FAFB] flex flex-col font-sans">
             <Header />
 
-            <div className="flex-1 w-full max-w-[1101px] mx-auto bg-white border-x border-gray-200 flex flex-col">
+            <div className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col border-x border-gray-200 bg-white">
                 <div className="px-10 py-6">
                     <div className="flex items-center bg-gray-100 border-2 border-gray-200 rounded-xl px-4">
                         <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
@@ -88,24 +118,24 @@ export default function ServiceCatalog() {
                 </div>
                 
                 <div className="flex flex-1 px-10">
-                    <aside className="hidden md:block w-[220px] pr-6 py-8 border-r-2 border-gray-200">
+                    <aside className="hidden w-[280px] shrink-0 border-r-2 border-gray-200 py-8 pr-6 md:block lg:w-[320px]">
                         <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">{t('services.categories')}</h3>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex max-h-[29.75rem] flex-col gap-1 overflow-y-auto overscroll-contain pr-2">
                             <button
-                                onClick={() => setSelectedCategory(null)}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition text-[16px] font-medium ${!selectedCategory ? 'bg-[#E8F0FE] text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                                onClick={() => selectCategory(null)}
+                                className={`flex h-14 shrink-0 items-center gap-3 rounded-xl px-4 text-left text-[15px] font-medium transition ${!selectedCategory ? 'bg-[#E8F0FE] text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
                             >
-                                <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                                {t('services.allCategories')}
+                                <svg className="h-5 w-5 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                                <span className="leading-5">{t('services.allCategories')}</span>
                             </button>
                             {(Array.isArray(categories) ? categories : []).map((category) => localizeCategory(category, language)).map(cat => (
                                 <button
                                     key={cat.id}
-                                    onClick={() => setSelectedCategory(cat)}
-                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition text-[16px] font-medium text-left ${selectedCategory?.id === cat.id ? 'bg-[#E8F0FE] text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+                                    onClick={() => selectCategory(cat)}
+                                    className={`flex h-14 shrink-0 items-center gap-3 rounded-xl px-4 text-left text-[15px] font-medium transition ${selectedCategory?.id === cat.id ? 'bg-[#E8F0FE] text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
                                 >
-                                    <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                    {cat.name}
+                                    <svg className="h-5 w-5 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    <span className="leading-5">{cat.name}</span>
                                 </button>
                             ))}
                         </div>
@@ -117,7 +147,7 @@ export default function ServiceCatalog() {
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                             </div>
                             <h2 className="text-[26px] font-bold text-gray-900">{selectedCategory ? selectedCategory.name : t('services.all')}</h2>
-                            <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-[13px] font-semibold">{t('services.count', { count: services.length })}</span>
+                            <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-[13px] font-semibold">{t('services.count', { count: meta?.total ?? services.length })}</span>
                         </div>
 
                         {loading ? (
@@ -156,6 +186,40 @@ export default function ServiceCatalog() {
                                     </Link>
                                 ))}
                             </div>
+                        )}
+
+                        {!loading && services.length > 0 && lastPage > 1 && (
+                            <nav className="mt-7 flex items-center justify-center gap-2" aria-label={t('services.pagination')}>
+                                <button
+                                    type="button"
+                                    disabled={currentPage <= 1}
+                                    className="btn-secondary rounded-xl px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                                    onClick={() => changePage(currentPage - 1)}
+                                >
+                                    {t('services.previousPage')}
+                                </button>
+
+                                {Array.from({ length: lastPage }, (_, index) => index + 1).map((page) => (
+                                    <button
+                                        key={page}
+                                        type="button"
+                                        aria-current={page === currentPage ? 'page' : undefined}
+                                        className={`h-10 min-w-10 rounded-xl px-3 text-sm font-semibold transition ${page === currentPage ? 'bg-blue-600 text-white shadow-sm' : 'border border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-600'}`}
+                                        onClick={() => changePage(page)}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+
+                                <button
+                                    type="button"
+                                    disabled={currentPage >= lastPage}
+                                    className="btn-secondary rounded-xl px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                                    onClick={() => changePage(currentPage + 1)}
+                                >
+                                    {t('services.nextPage')}
+                                </button>
+                            </nav>
                         )}
                     </div>
                 </div>

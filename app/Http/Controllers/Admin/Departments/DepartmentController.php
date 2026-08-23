@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Gate;
 
 class DepartmentController extends Controller
 {
+    private const DEPARTMENTS_PER_PAGE = 10;
+
     public function index(ListDepartmentsRequest $request): View
     {
         /** @var User $actor */
@@ -52,7 +54,7 @@ class DepartmentController extends Controller
             ->withStructureCounts()
             ->orderBy('code')
             ->orderBy('id')
-            ->paginate(15)
+            ->paginate(self::DEPARTMENTS_PER_PAGE)
             ->withQueryString();
         $stats = $this->departmentStats($actor);
         $managers = $this->managerFilterOptions($actor);

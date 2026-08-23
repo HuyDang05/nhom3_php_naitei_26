@@ -37,7 +37,10 @@ class ServiceCatalogController extends Controller
         $perPage = (int) $request->input('per_page', 15);
         $perPage = max(1, min($perPage, 100));
 
-        $services = $query->paginate($perPage);
+        $services = $query
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate($perPage);
         $payload = ServiceTypeResource::collection($services)->response()->getData();
 
         return ApiResponse::success(

@@ -16,6 +16,8 @@ use Illuminate\View\View;
 
 class ServiceTypeController extends Controller
 {
+    private const SERVICE_TYPES_PER_PAGE = 10;
+
     public function index(Request $request): View
     {
         $this->authorize('viewAny', ServiceType::class);
@@ -43,7 +45,7 @@ class ServiceTypeController extends Controller
 
         $serviceTypes = $query->orderBy('category_id')
             ->orderBy('id')
-            ->paginate(15)
+            ->paginate(self::SERVICE_TYPES_PER_PAGE)
             ->withQueryString();
 
         $categories = ServiceCategory::orderBy('name')->get();

@@ -14,7 +14,7 @@ import LanguageSwitcher from './LanguageSwitcher';
 import NotificationMenu from './NotificationMenu';
 
 function logCitizenSessionSyncFailure(error) {
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && error?.response?.status !== 401) {
         console.warn('Không thể đồng bộ phiên công dân.', {
             message: error?.message,
             status: error?.response?.status,
@@ -26,6 +26,7 @@ export default function Header() {
     const { pathname } = useLocation();
     const { t } = useLanguage();
     const [citizen, setCitizen] = useState(() => getRememberedCitizen());
+    const [isCitizenVerified, setIsCitizenVerified] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const navItems = [
@@ -36,6 +37,11 @@ export default function Header() {
 
     useEffect(() => {
         let isMounted = true;
+        const rememberedCitizen = getRememberedCitizen();
+
+        if (!rememberedCitizen) {
+            return undefined;
+        }
 
         async function syncCitizen() {
             try {
@@ -47,6 +53,7 @@ export default function Header() {
 
                 rememberCitizenSession(response.data);
                 setCitizen(response.data);
+                setIsCitizenVerified(true);
             } catch (error) {
                 logCitizenSessionSyncFailure(error);
 
@@ -56,6 +63,7 @@ export default function Header() {
 
                 forgetCitizenSession();
                 setCitizen(null);
+                setIsCitizenVerified(false);
             }
         }
 
@@ -74,6 +82,7 @@ export default function Header() {
         } finally {
             forgetCitizenSession();
             setCitizen(null);
+            setIsCitizenVerified(false);
             setIsLoggingOut(false);
             window.location.assign('/login');
         }
@@ -110,7 +119,7 @@ export default function Header() {
                 <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                     {citizen ? (
                         <>
-                            <NotificationMenu enabled={Boolean(citizen)} />
+                            <NotificationMenu enabled={isCitizenVerified} />
                             <LanguageSwitcher />
                             <Link className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-[#075cca] ring-1 ring-blue-100 transition hover:bg-blue-100" title={t('nav.profile')} to="/profile">
                                 {citizen.name?.charAt(0)?.toUpperCase() || 'C'}

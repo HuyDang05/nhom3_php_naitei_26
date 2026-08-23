@@ -37,6 +37,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ApplicationController extends Controller
 {
+    private const APPLICATIONS_PER_PAGE = 10;
+
     public function index(ListApplicationsRequest $request): View|RedirectResponse
     {
         /** @var User $actor */
@@ -64,7 +66,7 @@ class ApplicationController extends Controller
             ->sortForAdmin($filters['sort']);
 
         $queryParameters = $this->applicationQueryParameters($filters, $request->boolean('overdue'));
-        $applications = $query->paginate(20)->appends($queryParameters);
+        $applications = $query->paginate(self::APPLICATIONS_PER_PAGE)->appends($queryParameters);
 
         if ($applications->total() > 0 && $applications->currentPage() > $applications->lastPage()) {
             return redirect()->route('admin.applications.index', [

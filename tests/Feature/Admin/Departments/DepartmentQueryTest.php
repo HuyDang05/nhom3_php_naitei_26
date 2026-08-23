@@ -92,9 +92,9 @@ class DepartmentQueryTest extends TestCase
         $response->assertOk()->assertViewHas('departments', function ($departments) use ($manager): bool {
             parse_str((string) parse_url($departments->url(2), PHP_URL_QUERY), $pageQuery);
 
-            return $departments->count() === 15
+            return $departments->count() === 10
                 && $departments->first()->code === 'PAGE-001'
-                && $departments->last()->code === 'PAGE-015'
+                && $departments->last()->code === 'PAGE-010'
                 && $pageQuery['search'] === 'phân trang'
                 && (int) $pageQuery['manager_id'] === $manager->id
                 && $pageQuery['status'] === 'all';
