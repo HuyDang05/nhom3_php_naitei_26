@@ -15,6 +15,8 @@ use Illuminate\Http\Request;
 
 class ServiceCategoryController extends Controller
 {
+    private const CATEGORIES_PER_PAGE = 10;
+
     public function index(Request $request): View
     {
         $this->authorize('viewAny', ServiceCategory::class);
@@ -44,7 +46,7 @@ class ServiceCategoryController extends Controller
             ->withCount(['serviceTypes' => fn ($q) => $q->withTrashed()])
             ->orderBy('code')
             ->orderBy('id')
-            ->paginate(15)
+            ->paginate(self::CATEGORIES_PER_PAGE)
             ->withQueryString();
 
         $hasFilters = $request->filled('search') || $status !== 'active';

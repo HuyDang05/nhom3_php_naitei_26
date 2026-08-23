@@ -17,6 +17,7 @@ class ServiceTypeResource extends JsonResource
         return [
             'id' => $this->id,
             'category_id' => $this->category_id,
+            'category_code' => $this->whenLoaded('category', fn () => $this->category->code),
             'category_name' => $this->whenLoaded('category', fn () => $this->category->name),
             'name' => $this->name,
             'code' => $this->code,

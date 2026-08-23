@@ -61,8 +61,9 @@ export default function HomePage() {
         let isMounted = true;
 
         async function loadHomepage() {
+            const rememberedCitizen = getRememberedCitizen();
             const [profileResult, servicesResult] = await Promise.allSettled([
-                fetchCitizenProfile(),
+                rememberedCitizen ? fetchCitizenProfile() : Promise.resolve(null),
                 fetchServices({ per_page: 4 }),
             ]);
 
@@ -70,10 +71,10 @@ export default function HomePage() {
                 return;
             }
 
-            if (profileResult.status === 'fulfilled') {
+            if (profileResult.status === 'fulfilled' && profileResult.value) {
                 rememberCitizenSession(profileResult.value.data);
                 setCitizen(profileResult.value.data);
-            } else {
+            } else if (rememberedCitizen) {
                 forgetCitizenSession();
                 setCitizen(null);
             }

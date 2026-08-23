@@ -35,6 +35,32 @@ class ServiceCatalogManagementTest extends TestCase
             ->assertSee($category->name);
     }
 
+    public function test_service_category_pagination_uses_ten_items_and_preserves_filters(): void
+    {
+        foreach (range(1, 11) as $number) {
+            ServiceCategory::factory()->create([
+                'name' => "Pagination category {$number}",
+                'code' => sprintf('PAGECAT-%03d', $number),
+            ]);
+        }
+
+        $response = $this->actingAs($this->admin)->get(route('admin.service-categories.index', [
+            'search' => 'PAGECAT',
+            'status' => 'active',
+            'page' => 1,
+        ]));
+
+        $response->assertOk()->assertViewHas('categories', function ($categories): bool {
+            parse_str((string) parse_url($categories->url(2), PHP_URL_QUERY), $pageQuery);
+
+            return $categories->count() === 10
+                && $categories->total() === 11
+                && $categories->lastPage() === 2
+                && $pageQuery['search'] === 'PAGECAT'
+                && $pageQuery['status'] === 'active';
+        });
+    }
+
     public function test_admin_can_create_service_category(): void
     {
         $response = $this->actingAs($this->admin)->post(route('admin.service-categories.store'), [
@@ -75,6 +101,39 @@ class ServiceCatalogManagementTest extends TestCase
 
         $response->assertOk()
             ->assertSee($type->name);
+    }
+
+    public function test_service_type_pagination_uses_ten_items_and_preserves_filters(): void
+    {
+        $category = ServiceCategory::factory()->create();
+        $department = Department::factory()->create();
+
+        foreach (range(1, 11) as $number) {
+            ServiceType::factory()->create([
+                'category_id' => $category->id,
+                'responsible_department_id' => $department->id,
+                'name' => "Pagination service {$number}",
+                'code' => sprintf('PAGESRV-%03d', $number),
+            ]);
+        }
+
+        $response = $this->actingAs($this->admin)->get(route('admin.service-types.index', [
+            'search' => 'PAGESRV',
+            'category' => $category->id,
+            'status' => 'active',
+            'page' => 1,
+        ]));
+
+        $response->assertOk()->assertViewHas('serviceTypes', function ($serviceTypes) use ($category): bool {
+            parse_str((string) parse_url($serviceTypes->url(2), PHP_URL_QUERY), $pageQuery);
+
+            return $serviceTypes->count() === 10
+                && $serviceTypes->total() === 11
+                && $serviceTypes->lastPage() === 2
+                && $pageQuery['search'] === 'PAGESRV'
+                && (int) $pageQuery['category'] === $category->id
+                && $pageQuery['status'] === 'active';
+        });
     }
 
     public function test_admin_can_create_service_type(): void
