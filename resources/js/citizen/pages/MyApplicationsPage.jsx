@@ -28,6 +28,13 @@ export default function MyApplicationsPage() {
             setApplications(response.data.data ?? []);
             setMeta(response.data.meta ?? null);
         } catch (error) {
+            if (import.meta.env.DEV) {
+                console.error('[MyApplicationsPage] loadApplications failed', {
+                    page,
+                    message: error?.message,
+                    status: error?.response?.status,
+                });
+            }
             if (error?.response?.status === 401) {
                 forgetCitizenSession();
                 navigate('/login', {
@@ -95,20 +102,20 @@ export default function MyApplicationsPage() {
         <main className="min-h-screen bg-surface flex flex-col font-sans">
             <Header />
 
-            <div className="flex-1 w-full max-w-[1101px] mx-auto bg-white border-x border-gray-200 flex flex-col">
-                <div className="flex items-center justify-between px-10 py-6 border-b border-gray-100">
-                    <div>
+            <div className="flex-1 w-full max-w-[1280px] mx-auto bg-white border-x border-gray-200 flex flex-col overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 sm:px-10 py-6 border-b border-gray-100">
+                    <div className="min-w-0">
                         <h1 className="text-[26px] font-bold tracking-tight text-gray-900">{t('applications.title')}</h1>
                         <p className="mt-1 text-sm text-gray-500">
                             {meta?.total ? t('applications.countSummary', { count: meta.total }) : t('applications.listSummary')}
                         </p>
                     </div>
-                    <Link className="btn-primary rounded-xl px-6 py-3 text-[15px]" to="/services">
+                    <Link className="btn-primary rounded-xl px-6 py-3 text-[15px] shrink-0" to="/services">
                         {t('applications.new')}
                     </Link>
                 </div>
 
-                <div className="flex-1 px-10 py-8">
+                <div className="flex-1 px-6 sm:px-10 py-8 overflow-hidden">
                     {loading ? (
                         <div className="py-10 text-center text-gray-500">{t('common.loading')}</div>
                     ) : loadError ? (
@@ -135,20 +142,20 @@ export default function MyApplicationsPage() {
                                 <Link
                                     key={application.id}
                                     to={`/applications/${application.id}`}
-                                    className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 md:p-6 transition hover:bg-gray-50 group ${index !== 0 ? 'border-t-[1.5px] border-gray-100' : ''}`}
+                                    className={`flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-4 p-5 lg:p-6 transition hover:bg-gray-50 group ${index !== 0 ? 'border-t-[1.5px] border-gray-100' : ''}`}
                                 >
-                                    <div className="min-w-0 flex-1 pr-6">
+                                    <div className="min-w-0 flex-1">
                                         <h4 className="truncate text-[17px] font-semibold text-gray-900 group-hover:text-blue-600 transition">
                                             {localizeService(application.service_type, language)?.name ?? t('applications.service')}
                                         </h4>
-                                        <p className="mt-1 font-consolas text-sm text-gray-500">{application.application_code}</p>
+                                        <p className="mt-1 font-consolas text-sm text-gray-500 break-all">{application.application_code}</p>
                                     </div>
-                                    <div className="flex items-center gap-6 md:gap-8">
-                                        <div className="w-36 text-left md:text-right">
+                                    <div className="flex flex-wrap items-center gap-4 lg:gap-6 lg:shrink-0">
+                                        <div className="min-w-0 text-left lg:text-right">
                                             <span className="text-[13px] font-semibold text-gray-400 uppercase tracking-widest block">{t('applications.submittedDate')}</span>
-                                            <span className="text-[15px] font-semibold text-gray-700">{formatDate(application.submitted_at, locale)}</span>
+                                            <span className="text-[15px] font-semibold text-gray-700 whitespace-nowrap">{formatDate(application.submitted_at, locale)}</span>
                                         </div>
-                                        <div className="w-32 flex justify-end">
+                                        <div className="flex justify-start lg:justify-end lg:w-36">
                                             <StatusBadge status={application.status} />
                                         </div>
                                     </div>

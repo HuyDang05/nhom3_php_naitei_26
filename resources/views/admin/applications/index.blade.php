@@ -39,7 +39,7 @@
             Có <strong>{{ number_format($claimable) }}</strong> hồ sơ chưa có người phụ trách trong phòng ban của bạn.
             Bạn có thể nhận xử lý từ luồng nghiệp vụ F05.
         </div>
-        <section class="mb-5 admin-card" aria-labelledby="claimable-title">
+        <section class="mb-5 admin-card" aria-labelledby="claimable-title" id="claimable">
             <div class="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-5">
                 <h2 id="claimable-title" class="text-base font-bold text-gray-950">Hồ sơ có thể nhận</h2>
                 <x-admin.badge variant="info">{{ number_format($claimable) }} hồ sơ</x-admin.badge>
@@ -50,8 +50,15 @@
                         <div class="min-w-0">
                             <p class="truncate font-mono text-sm font-semibold text-primary">{{ $application->application_code }}</p>
                             <p class="truncate text-xs text-gray-600">{{ $application->serviceType?->name }} · {{ $application->citizen?->name }}</p>
+                            <p class="text-xs text-gray-500">{{ $application->status->label() }} · {{ $application->serviceType?->responsibleDepartment?->name }}</p>
                         </div>
-                        <x-admin.button variant="secondary" :href="route('admin.applications.show', $application)">Nhận xử lý</x-admin.button>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <x-admin.button variant="ghost" :href="route('admin.applications.show', $application)">Xem</x-admin.button>
+                            <form method="POST" action="{{ route('admin.applications.claim', $application) }}">
+                                @csrf
+                                <x-admin.button type="submit">Nhận xử lý</x-admin.button>
+                            </form>
+                        </div>
                     </div>
                 @empty
                     <p class="text-sm text-gray-600">Không có hồ sơ nào đang chờ nhận.</p>
@@ -60,7 +67,7 @@
         </section>
     @endif
 
-    <section class="admin-card" aria-labelledby="application-results-title">
+    <section class="admin-card overflow-visible" aria-labelledby="application-results-title">
         <h2 id="application-results-title" class="sr-only">Kết quả tra cứu hồ sơ</h2>
 
         <form method="GET" action="{{ route('admin.applications.index') }}" class="border-b border-border p-4 sm:p-5">
@@ -175,8 +182,14 @@
         @if ($applications->isEmpty())
             <div class="px-5 py-12 text-center">
                 @if ($authorizedApplicationCount === 0)
-                    <h3 class="text-lg font-bold text-gray-950">Chưa có hồ sơ trong phạm vi của bạn</h3>
-                    <p class="mx-auto mt-2 max-w-lg text-sm text-gray-600">Hồ sơ được phân công hoặc thuộc phòng ban bạn phụ trách sẽ xuất hiện tại đây.</p>
+                    <h3 class="text-lg font-bold text-gray-950">Chưa có hồ sơ được gán cho bạn</h3>
+                    <p class="mx-auto mt-2 max-w-lg text-sm text-gray-600">
+                        @if ($claimable > 0)
+                            Bạn chưa có hồ sơ nào được gán, nhưng có <strong>{{ $claimable }}</strong> hồ sơ trong phòng ban đang chờ nhận ở trên. Hãy bấm “Nhận xử lý” để tiếp nhận.
+                        @else
+                            Hồ sơ được phân công hoặc thuộc phòng ban bạn phụ trách sẽ xuất hiện tại đây.
+                        @endif
+                    </p>
                 @else
                     <h3 class="text-lg font-bold text-gray-950">Không tìm thấy hồ sơ phù hợp</h3>
                     <p class="mx-auto mt-2 max-w-lg text-sm text-gray-600">Hãy thay đổi điều kiện tra cứu hoặc xóa bộ lọc để xem lại danh sách.</p>
@@ -190,8 +203,8 @@
                 <h2 class="text-base font-bold text-gray-950">Hồ sơ của tôi</h2>
                 <p class="mt-0.5 text-sm text-gray-600">Các hồ sơ đã được gán cho bạn hoặc nằm trong phạm vi quản lý.</p>
             </div>
-            <div class="admin-table-wrap overflow-x-auto rounded-none border-x-0 border-t-0" tabindex="0" aria-label="Bảng hồ sơ có thể cuộn ngang">
-                <table class="admin-table min-w-[960px] w-full">
+            <div class="admin-table-wrap overflow-x-auto rounded-none border-x-0 border-t-0 border-b-0" tabindex="0" aria-label="Bảng hồ sơ có thể cuộn ngang">
+                <table class="admin-table min-w-[1180px] w-full">
                     <caption class="sr-only">Danh sách hồ sơ trong phạm vi được phép</caption>
                     <thead>
                         <tr>
@@ -202,7 +215,7 @@
                             <th scope="col">Người phụ trách</th>
                             <th scope="col">Trạng thái</th>
                             <th scope="col">Ngày nộp</th>
-                            <th scope="col" aria-label="Thao tác"></th>
+                            <th scope="col" class="sticky right-0 z-20 bg-gray-50 shadow-[-8px_0_16px_rgba(0,0,0,0.06)] min-w-[140px] w-[140px] text-center">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -249,9 +262,9 @@
                                         <x-admin.badge variant="danger">Quá hạn</x-admin.badge>
                                     @endif
                                 </td>
-                                <td>
-                                    <div class="flex justify-end">
-                                        <x-admin.button variant="ghost" :href="route('admin.applications.show', $application)">Chi tiết</x-admin.button>
+                                <td class="sticky right-0 z-10 bg-white shadow-[-8px_0_16px_rgba(0,0,0,0.06)] min-w-[140px] w-[140px]">
+                                    <div class="flex justify-center">
+                                        <x-admin.button variant="primary" class="w-full justify-center shadow-sm" :href="route('admin.applications.show', $application)">Chi tiết</x-admin.button>
                                     </div>
                                 </td>
                             </tr>

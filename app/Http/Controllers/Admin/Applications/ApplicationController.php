@@ -8,8 +8,10 @@ use App\Actions\Application\ClaimApplicationAction;
 use App\Actions\Application\RejectApplicationAction;
 use App\Actions\Application\RequestSupplementAction;
 use App\Actions\Application\ResumeProcessingAction;
+use App\Actions\Application\ReturnToProcessingAction;
 use App\Actions\Application\StartProcessingAction;
 use App\Actions\Application\StoreResultDocumentAction;
+use App\Actions\Application\SubmitForApprovalAction;
 use App\Enums\ApplicationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Applications\ApproveApplicationRequest;
@@ -17,7 +19,9 @@ use App\Http\Requests\Admin\Applications\AssignApplicationRequest;
 use App\Http\Requests\Admin\Applications\ListApplicationsRequest;
 use App\Http\Requests\Admin\Applications\RejectApplicationRequest;
 use App\Http\Requests\Admin\Applications\RequestSupplementRequest;
+use App\Http\Requests\Admin\Applications\ReturnToProcessingRequest;
 use App\Http\Requests\Admin\Applications\StoreResultDocumentRequest;
+use App\Http\Requests\Admin\Applications\SubmitForApprovalRequest;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
 use App\Models\Department;
@@ -88,8 +92,10 @@ class ApplicationController extends Controller
             $stats = [
                 'pending' => (clone $visibleScope)->whereIn('status', [
                     ApplicationStatus::Received,
+                    ApplicationStatus::Assigned,
                     ApplicationStatus::Processing,
                     ApplicationStatus::SupplementRequired,
+                    ApplicationStatus::PendingApproval,
                 ])->count(),
                 'overdue' => (clone $visibleScope)->overdue()->count(),
             ];
@@ -198,7 +204,16 @@ class ApplicationController extends Controller
             'statusHistories.changedBy',
         ]);
 
-        return view('admin.applications.show', compact('application'));
+        // C033: chuẩn bị danh sách candidate ở controller thay vì filter trong Blade
+        $departmentUsers = $application->serviceType?->responsibleDepartment?->users ?? collect();
+        $assignCandidates = $departmentUsers
+            ->filter(fn (User $user) => $user->isStaff() && $user->canAccessProtectedResources())
+            ->values();
+        $reassignCandidates = $departmentUsers
+            ->filter(fn (User $user) => $user->isStaff() && $user->canAccessProtectedResources() && $user->getKey() !== $application->assigned_staff_id)
+            ->values();
+
+        return view('admin.applications.show', compact('application', 'assignCandidates', 'reassignCandidates'));
     }
 
     public function assign(
@@ -293,6 +308,34 @@ class ApplicationController extends Controller
         return redirect()
             ->route('admin.applications.show', $application)
             ->with('success', 'Đã từ chối hồ sơ.');
+    }
+
+    public function submitForApproval(
+        SubmitForApprovalRequest $request,
+        Application $application,
+        SubmitForApprovalAction $action,
+    ): RedirectResponse {
+        $this->authorize('submitForApproval', $application);
+
+        $action->handle($application, $request->user(), $request->validated('note'));
+
+        return redirect()
+            ->route('admin.applications.show', $application)
+            ->with('success', 'Đã gửi hồ sơ chờ duyệt.');
+    }
+
+    public function returnToProcessing(
+        ReturnToProcessingRequest $request,
+        Application $application,
+        ReturnToProcessingAction $action,
+    ): RedirectResponse {
+        $this->authorize('returnToProcessing', $application);
+
+        $action->handle($application, $request->user(), $request->validated('note'));
+
+        return redirect()
+            ->route('admin.applications.show', $application)
+            ->with('success', 'Đã trả hồ sơ về xử lý lại.');
     }
 
     public function storeResultDocument(

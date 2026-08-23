@@ -19,6 +19,7 @@ class DashboardController extends Controller
         $completedPlaceholders = implode(', ', array_fill(0, count($completedStatuses), '?'));
         $overdueCondition = Application::overdueConditionSql();
 
+        // leftJoin giữ soft-deleted service_types để đồng bộ với scopeOverdue/withTrashed (tránh lệch metric overdue vs filter ?overdue=1)
         $aggregate = Application::query()
             ->visibleTo($actor)
             ->leftJoin('service_types', 'service_types.id', '=', 'applications.service_type_id')
@@ -26,8 +27,10 @@ class DashboardController extends Controller
                 <<<SQL
                     COUNT(*) AS total,
                     COUNT(*) FILTER (WHERE applications.status = ?) AS received,
+                    COUNT(*) FILTER (WHERE applications.status = ?) AS assigned,
                     COUNT(*) FILTER (WHERE applications.status = ?) AS processing,
                     COUNT(*) FILTER (WHERE applications.status = ?) AS supplement_required,
+                    COUNT(*) FILTER (WHERE applications.status = ?) AS pending_approval,
                     COUNT(*) FILTER (WHERE applications.status IN ({$completedPlaceholders})) AS completed,
                     COUNT(*) FILTER (
                         WHERE applications.status NOT IN ({$completedPlaceholders})
@@ -36,8 +39,10 @@ class DashboardController extends Controller
                 SQL,
                 [
                     ApplicationStatus::Received->value,
+                    ApplicationStatus::Assigned->value,
                     ApplicationStatus::Processing->value,
                     ApplicationStatus::SupplementRequired->value,
+                    ApplicationStatus::PendingApproval->value,
                     ...$completedStatuses,
                     ...$completedStatuses,
                 ],
@@ -47,24 +52,55 @@ class DashboardController extends Controller
         $metrics = collect([
             'total',
             'received',
+            'assigned',
             'processing',
             'supplement_required',
+            'pending_approval',
             'completed',
             'overdue',
         ])->mapWithKeys(fn (string $key): array => [$key => (int) $aggregate->getAttribute($key)])->all();
 
+        $claimableCount = 0;
+        if ($actor->isStaff()) {
+            $claimableCount = Application::query()->claimableBy($actor)->count();
+        }
+
+        $pendingApplications = collect();
+        if ($actor->isManager() || $actor->isSuperAdmin()) {
+            $pendingApplications = Application::query()
+                ->visibleTo($actor)
+                ->where('status', ApplicationStatus::PendingApproval)
+                ->with([
+                    'serviceType' => fn ($q) => $q->withTrashed()->with(['responsibleDepartment' => fn ($dq) => $dq->withTrashed()]),
+                    'citizen' => fn ($q) => $q->withTrashed(),
+                    'assignedStaff' => fn ($q) => $q->withTrashed(),
+                ])
+                ->orderByDesc('updated_at')
+                ->orderByDesc('id')
+                ->limit(10)
+                ->get();
+        }
+
         $metricCards = [
             'total' => [
                 'label' => 'Tổng hồ sơ',
-                'description' => 'Tất cả hồ sơ trong phạm vi bạn được phép xem.',
+                'description' => $actor->isStaff()
+                    ? 'Tổng hồ sơ đã được gán cho bạn (chưa tính hồ sơ có thể nhận).'
+                    : 'Tất cả hồ sơ trong phạm vi bạn được phép xem.',
                 'url' => route('admin.applications.index'),
                 'accent' => 'text-gray-950',
             ],
             'received' => [
                 'label' => 'Mới tiếp nhận',
-                'description' => 'Hồ sơ đã tiếp nhận và đang chờ bắt đầu xử lý.',
+                'description' => 'Hồ sơ đã tiếp nhận và đang chờ phân công.',
                 'url' => route('admin.applications.index', ['status' => ApplicationStatus::Received->value]),
                 'accent' => 'text-sky-700',
+            ],
+            'assigned' => [
+                'label' => 'Đã phân công',
+                'description' => 'Hồ sơ đã phân công và chờ bắt đầu xử lý.',
+                'url' => route('admin.applications.index', ['status' => ApplicationStatus::Assigned->value]),
+                'accent' => 'text-indigo-700',
             ],
             'processing' => [
                 'label' => 'Đang xử lý',
@@ -77,6 +113,12 @@ class DashboardController extends Controller
                 'description' => 'Hồ sơ đang chờ công dân bổ sung thông tin hoặc tài liệu.',
                 'url' => route('admin.applications.index', ['status' => ApplicationStatus::SupplementRequired->value]),
                 'accent' => 'text-amber-700',
+            ],
+            'pending_approval' => [
+                'label' => 'Chờ duyệt',
+                'description' => 'Hồ sơ đã gửi chờ quản lý duyệt.',
+                'url' => route('admin.applications.index', ['status' => ApplicationStatus::PendingApproval->value]),
+                'accent' => 'text-purple-700',
             ],
             'completed' => [
                 'label' => 'Đã hoàn thành',
@@ -92,6 +134,6 @@ class DashboardController extends Controller
             ],
         ];
 
-        return view('admin.dashboard', compact('metricCards', 'metrics'));
+        return view('admin.dashboard', compact('metricCards', 'metrics', 'claimableCount', 'pendingApplications'));
     }
 }

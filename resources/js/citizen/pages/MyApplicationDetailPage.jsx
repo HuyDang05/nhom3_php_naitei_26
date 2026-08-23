@@ -17,7 +17,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { localizeService } from '../i18n/content';
 import { statusDescription, statusLabel, transitionDescription } from '../utils/applicationStatus';
 import { formatBytes, formatDateTime } from '../utils/format';
-import { normalizeDocumentRequirements } from '../utils/schema';
+import { normalizeDocumentRequirements, normalizeSchemaFields } from '../utils/schema';
 
 export default function MyApplicationDetailPage() {
     const { id } = useParams();
@@ -33,6 +33,7 @@ export default function MyApplicationDetailPage() {
     const [files, setFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
+    const [previewDoc, setPreviewDoc] = useState(null);
 
     const isEditable = application?.status === 'received';
     const canUpload = application?.status === 'received' || application?.status === 'supplement_required';
@@ -49,6 +50,14 @@ export default function MyApplicationDetailPage() {
             const response = await fetchApplication(id);
             setApplication(response.data);
         } catch (error) {
+            // C029: log with context for observability (entityId + status)
+            if (import.meta.env.DEV) {
+                console.error('[MyApplicationDetailPage] loadApplication failed', {
+                    applicationId: id,
+                    status: error?.response?.status,
+                    message: error?.message,
+                });
+            }
             if (error?.response?.status === 401) {
                 forgetCitizenSession();
                 navigate('/login', {
@@ -109,8 +118,10 @@ export default function MyApplicationDetailPage() {
         }
 
         const interval = window.setInterval(() => {
-            loadApplication();
-        }, 30000);
+            if (document.visibilityState === 'visible') {
+                loadApplication();
+            }
+        }, 60000);
 
         const handleVisibility = () => {
             if (document.visibilityState === 'visible') {
@@ -118,28 +129,33 @@ export default function MyApplicationDetailPage() {
             }
         };
 
-        const handleFocus = () => loadApplication();
-
-        window.addEventListener('focus', handleFocus);
-        document.addEventListener('visibilitychange', handleVisibility);
+        window.addEventListener('visibilitychange', handleVisibility);
 
         return () => {
             window.clearInterval(interval);
-            window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibility);
         };
     }, [application?.status, id]);
 
     useEffect(() => {
+        let lastRefreshAt = 0;
+
         function refreshApplication(event) {
             const notifications = event.detail?.notifications ?? [];
             const hasCurrentApplicationUpdate = notifications.some((notification) => (
                 String(notification.application_id) === String(id)
             ));
 
-            if (hasCurrentApplicationUpdate) {
-                loadApplication();
+            if (!hasCurrentApplicationUpdate) {
+                return;
             }
+
+            const now = Date.now();
+            if (now - lastRefreshAt < 10000) {
+                return;
+            }
+            lastRefreshAt = now;
+            loadApplication();
         }
 
         window.addEventListener('citizen-notifications:updated', refreshApplication);
@@ -168,13 +184,38 @@ export default function MyApplicationDetailPage() {
         setUploading(true);
 
         try {
-            for (const entry of files) {
-                await uploadApplicationDocument(id, entry.file, entry.requirementCode || undefined);
+            const results = await Promise.allSettled(
+                files.map((entry) => uploadApplicationDocument(id, entry.file, entry.requirementCode || undefined)),
+            );
+            const failedCount = results.filter((result) => result.status === 'rejected').length;
+
+            if (failedCount > 0) {
+                const firstError = results.find((result) => result.status === 'rejected')?.reason;
+                const apiMessage = firstError ? getApiError(firstError).message : '';
+                // C029: log partial failure with entity context
+                if (import.meta.env.DEV) {
+                    console.error('[MyApplicationDetailPage] handleUpload partial failure', {
+                        applicationId: id,
+                        failedCount,
+                        firstError: firstError?.message,
+                        status: firstError?.response?.status,
+                    });
+                }
+                setMessage(apiMessage || t('applications.uploadPartial', { count: failedCount }));
+                await loadApplication();
+                return;
             }
 
             setFiles([]);
             await loadApplication();
         } catch (error) {
+            if (import.meta.env.DEV) {
+                console.error('[MyApplicationDetailPage] handleUpload failed', {
+                    applicationId: id,
+                    message: error?.message,
+                    status: error?.response?.status,
+                });
+            }
             setMessage(getApiError(error).message);
         } finally {
             setUploading(false);
@@ -189,6 +230,14 @@ export default function MyApplicationDetailPage() {
             await deleteApplicationDocument(id, documentId);
             await loadApplication();
         } catch (error) {
+            if (import.meta.env.DEV) {
+                console.error('[MyApplicationDetailPage] handleDelete failed', {
+                    applicationId: id,
+                    documentId,
+                    message: error?.message,
+                    status: error?.response?.status,
+                });
+            }
             setMessage(getApiError(error).message);
         } finally {
             setDeletingId(null);
@@ -210,11 +259,19 @@ export default function MyApplicationDetailPage() {
         setFiles((current) => current.filter((item) => item !== entry));
     }
 
+    function isPreviewable(doc) {
+        return ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(doc.mime_type);
+    }
+
+    function getPreviewUrl(doc) {
+        return `/api/v1/applications/${id}/documents/${doc.id}?inline=1`;
+    }
+
     if (loading) {
         return (
             <main className="min-h-screen bg-surface flex flex-col font-sans">
                 <Header />
-                <div className="flex-1 w-full max-w-[1101px] mx-auto bg-white border-x border-gray-200 flex items-center justify-center py-20 text-gray-500">
+                <div className="flex-1 w-full max-w-[1280px] mx-auto bg-white border-x border-gray-200 flex items-center justify-center py-20 text-gray-500">
                     {t('common.loading')}
                 </div>
                 <Footer />
@@ -226,7 +283,7 @@ export default function MyApplicationDetailPage() {
         return (
             <main className="min-h-screen bg-surface flex flex-col font-sans">
                 <Header />
-                <div className="flex-1 w-full max-w-[1101px] mx-auto bg-white border-x border-gray-200 flex flex-col items-center justify-center py-20">
+                <div className="flex-1 w-full max-w-[1280px] mx-auto bg-white border-x border-gray-200 flex flex-col items-center justify-center py-20">
                     <p className="text-gray-600">{t('applications.detailLoadError')}</p>
                     <button type="button" className="mt-4 text-sm font-semibold text-primary hover:underline" onClick={() => { setLoading(true); loadApplication(); }}>
                         {t('applications.tryAgain')}
@@ -244,6 +301,9 @@ export default function MyApplicationDetailPage() {
     const serviceRequirements = normalizeDocumentRequirements({
         document_requirements: localizedService?.document_requirements,
     });
+    const serviceFields = normalizeSchemaFields(localizedService);
+    const fieldLabelMap = Object.fromEntries(serviceFields.map((f) => [f.name, f.label]));
+    const getFieldLabel = (key) => fieldLabelMap[key] ?? String(key).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const requirementByCode = Object.fromEntries(serviceRequirements.map((requirement) => [requirement.code, requirement]));
 
     const documentGroups = [];
@@ -268,15 +328,15 @@ export default function MyApplicationDetailPage() {
         <main className="min-h-screen bg-surface flex flex-col font-sans">
             <Header />
 
-            <div className="flex-1 w-full max-w-[1101px] mx-auto bg-white border-x border-gray-200 flex flex-col">
-                <div className="px-10 py-6 border-b border-gray-100">
+            <div className="flex-1 w-full max-w-[1280px] mx-auto bg-white border-x border-gray-200 flex flex-col">
+                <div className="px-6 sm:px-10 py-6 border-b border-gray-100">
                     <Link className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-blue-600 transition" to="/applications">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                         {t('applications.backToMine')}
                     </Link>
                 </div>
 
-                <div className="flex-1 w-full max-w-3xl mx-auto px-10 py-8">
+                <div className="flex-1 w-full max-w-5xl mx-auto px-6 sm:px-10 py-8">
                     {flash && (
                         <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-success">
                             {flash}
@@ -312,7 +372,7 @@ export default function MyApplicationDetailPage() {
                                 <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                                     {formEntries.map(([key, value]) => (
                                         <div key={key}>
-                                            <dt className="text-[13px] font-semibold text-gray-400 uppercase tracking-widest">{key}</dt>
+                                            <dt className="text-[13px] font-semibold text-gray-400 uppercase tracking-widest">{getFieldLabel(key)}</dt>
                                             <dd className="mt-1 text-[15px] font-medium text-gray-900 break-words">{String(value ?? '—')}</dd>
                                         </div>
                                     ))}
@@ -424,6 +484,15 @@ export default function MyApplicationDetailPage() {
                                                         </div>
                                                     </div>
                                                     <div className="flex shrink-0 items-center gap-2">
+                                                        {isPreviewable(document) && (
+                                                            <button
+                                                                type="button"
+                                                                className="rounded-lg px-4 py-2 text-sm font-semibold text-primary transition hover:bg-blue-50"
+                                                                onClick={() => setPreviewDoc(document)}
+                                                            >
+                                                                {t('common.preview') ?? 'Xem'}
+                                                            </button>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             className="rounded-lg px-4 py-2 text-sm font-semibold text-primary transition hover:bg-blue-50"
@@ -455,7 +524,32 @@ export default function MyApplicationDetailPage() {
                         <section className="mt-8">
                             <h2 className="mb-4 text-[18px] font-bold text-gray-900">{t('applications.uploadMore')}</h2>
 
-                            {missingSlots.length > 0 ? (
+                            {application?.status === 'supplement_required' ? (
+                                <div className="space-y-4">
+                                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                                        <p className="mb-3 text-[15px] font-semibold text-gray-900">{t('applications.supplementUploadTitle') ?? 'Nộp tài liệu bổ sung'}</p>
+                                        <p className="mb-4 text-sm text-gray-600">{t('applications.supplementPendingHelp')}</p>
+                                        <DocumentUploader
+                                            requirement={null}
+                                            files={files}
+                                            onAdd={(next) => addFiles('', next)}
+                                            onRemove={(file) => removeFile(files.find((entry) => entry.file === file))}
+                                        />
+                                    </div>
+                                    {files.length > 0 && (
+                                        <div className="flex justify-end">
+                                            <button
+                                                type="button"
+                                                disabled={uploading}
+                                                className="btn-primary rounded-xl px-7 py-3 text-[15px]"
+                                                onClick={handleUpload}
+                                            >
+                                                {uploading ? t('applications.uploading') : t('applications.uploadSupplement')}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : missingSlots.length > 0 ? (
                                 <div className="space-y-6">
                                     {missingSlots.map((requirement) => (
                                         <div key={requirement.code} className="rounded-2xl border border-gray-200 bg-white p-5">
@@ -487,9 +581,7 @@ export default function MyApplicationDetailPage() {
                                 </div>
                             ) : (
                                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
-                                    {application.status === 'supplement_required'
-                                        ? t('applications.supplementComplete')
-                                        : t('applications.noSupplementNeeded')}
+                                    {t('applications.noSupplementNeeded')}
                                 </div>
                             )}
                         </section>
@@ -499,6 +591,31 @@ export default function MyApplicationDetailPage() {
                         <p className="mt-6 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-danger">{message}</p>
                     )}
                 </div>
+
+                {previewDoc && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setPreviewDoc(null)}>
+                        <div className="relative flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                                <div className="min-w-0">
+                                    <h3 className="truncate text-lg font-bold text-gray-900">{previewDoc.original_name}</h3>
+                                    <p className="text-xs text-gray-500">{previewDoc.requirement_label || previewDoc.mime_type}</p>
+                                </div>
+                                <button type="button" className="ml-4 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-2xl text-gray-500 hover:bg-gray-100" onClick={() => setPreviewDoc(null)} aria-label="Đóng">×</button>
+                            </div>
+                            <div className="flex-1 overflow-auto bg-gray-100 p-2">
+                                {previewDoc.mime_type === 'application/pdf' ? (
+                                    <iframe src={getPreviewUrl(previewDoc)} title={previewDoc.original_name} className="h-[75vh] w-full rounded-lg border border-gray-200 bg-white" />
+                                ) : (
+                                    <img src={getPreviewUrl(previewDoc)} alt={previewDoc.original_name} className="mx-auto max-h-[75vh] w-auto rounded-lg object-contain" />
+                                )}
+                            </div>
+                            <div className="flex justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
+                                <button type="button" className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50" onClick={() => setPreviewDoc(null)}>{t('common.close') ?? 'Đóng'}</button>
+                                <button type="button" className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover" onClick={() => downloadApplicationDocument(id, previewDoc.id, previewDoc.original_name)}>{t('common.download')}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <Footer />
             </div>

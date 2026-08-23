@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\V1;
 
+use App\Enums\ApplicationStatus;
 use App\Support\ServiceSchema;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -21,6 +22,18 @@ class StoreApplicationDocumentRequest extends FormRequest
             ServiceSchema::normalizeDocumentRequirements($service?->document_requirements),
             'code'
         );
+
+        // Citizen bổ sung (supplement_required) chỉ cần 1 form chung, không bắt buộc theo schema
+        $isSupplement = $application?->status?->value === ApplicationStatus::SupplementRequired->value;
+
+        if ($isSupplement) {
+            return [
+                'document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+                'requirement_code' => count($codes) > 0
+                    ? ['nullable', 'string', Rule::in($codes)]
+                    : ['nullable', 'string'],
+            ];
+        }
 
         return [
             'document' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],

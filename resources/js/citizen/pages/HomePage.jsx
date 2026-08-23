@@ -78,8 +78,12 @@ export default function HomePage() {
                 setCitizen(null);
             }
 
-            if (servicesResult.status === 'fulfilled' && servicesResult.value.data.data.length > 0) {
-                setFeaturedServices(servicesResult.value.data.data.slice(0, 4));
+            if (servicesResult.status === 'fulfilled') {
+                const payload = servicesResult.value.data?.data;
+                const list = Array.isArray(payload) ? payload : (payload?.data ?? []);
+                if (Array.isArray(list) && list.length > 0) {
+                    setFeaturedServices(list.slice(0, 4));
+                }
             }
         }
 
@@ -116,7 +120,7 @@ export default function HomePage() {
 
             <section
                 className="relative isolate flex min-h-[590px] items-start overflow-hidden bg-[#073d7d] bg-cover bg-bottom px-4 pb-36 pt-20 text-center sm:min-h-[650px] sm:px-8 sm:pt-24"
-                style={{ backgroundImage: "url('/images/homepage-hero.png')" }}
+                style={{ backgroundImage: "image-set(url('/images/homepage-hero.webp') type('image/webp'), url('/images/homepage-hero.png') type('image/png'))" }}
             >
                 <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#053c7a]/55 via-[#073d7d]/45 to-[#092f61]/70" />
                 <div className="absolute inset-x-0 top-0 -z-10 h-52 bg-gradient-to-b from-black/15 to-transparent" />
