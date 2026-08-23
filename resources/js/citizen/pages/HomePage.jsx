@@ -125,7 +125,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#053c7a]/55 via-[#073d7d]/45 to-[#092f61]/70" />
                 <div className="absolute inset-x-0 top-0 -z-10 h-52 bg-gradient-to-b from-black/15 to-transparent" />
 
-                <div className="mx-auto flex w-full max-w-4xl flex-col items-center">
+                <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
                     {flash && (
                         <p className="mb-5 rounded-full border border-emerald-200/50 bg-emerald-50/95 px-5 py-2.5 text-sm font-semibold text-emerald-700 shadow-lg">
                             {flash}
@@ -137,7 +137,7 @@ export default function HomePage() {
                         {t('home.heroEyebrow')}
                     </span>
 
-                    <h1 className="max-w-4xl text-4xl font-bold leading-[1.12] tracking-[-0.035em] text-white drop-shadow-sm sm:text-5xl lg:text-[58px]">
+                    <h1 className="max-w-5xl text-4xl font-bold leading-[1.12] tracking-[-0.035em] text-white drop-shadow-sm sm:text-5xl lg:text-[58px]">
                         {t('home.heroTitle')}
                         <span className="block text-cyan-200">{t('home.heroAccent')}</span>
                     </h1>
