@@ -204,7 +204,16 @@ class ApplicationController extends Controller
             'statusHistories.changedBy',
         ]);
 
-        return view('admin.applications.show', compact('application'));
+        // C033: chuẩn bị danh sách candidate ở controller thay vì filter trong Blade
+        $departmentUsers = $application->serviceType?->responsibleDepartment?->users ?? collect();
+        $assignCandidates = $departmentUsers
+            ->filter(fn (User $user) => $user->isStaff() && $user->canAccessProtectedResources())
+            ->values();
+        $reassignCandidates = $departmentUsers
+            ->filter(fn (User $user) => $user->isStaff() && $user->canAccessProtectedResources() && $user->getKey() !== $application->assigned_staff_id)
+            ->values();
+
+        return view('admin.applications.show', compact('application', 'assignCandidates', 'reassignCandidates'));
     }
 
     public function assign(

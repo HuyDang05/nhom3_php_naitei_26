@@ -50,6 +50,14 @@ export default function MyApplicationDetailPage() {
             const response = await fetchApplication(id);
             setApplication(response.data);
         } catch (error) {
+            // C029: log with context for observability (entityId + status)
+            if (import.meta.env.DEV) {
+                console.error('[MyApplicationDetailPage] loadApplication failed', {
+                    applicationId: id,
+                    status: error?.response?.status,
+                    message: error?.message,
+                });
+            }
             if (error?.response?.status === 401) {
                 forgetCitizenSession();
                 navigate('/login', {
@@ -184,6 +192,15 @@ export default function MyApplicationDetailPage() {
             if (failedCount > 0) {
                 const firstError = results.find((result) => result.status === 'rejected')?.reason;
                 const apiMessage = firstError ? getApiError(firstError).message : '';
+                // C029: log partial failure with entity context
+                if (import.meta.env.DEV) {
+                    console.error('[MyApplicationDetailPage] handleUpload partial failure', {
+                        applicationId: id,
+                        failedCount,
+                        firstError: firstError?.message,
+                        status: firstError?.response?.status,
+                    });
+                }
                 setMessage(apiMessage || t('applications.uploadPartial', { count: failedCount }));
                 await loadApplication();
                 return;
@@ -192,6 +209,13 @@ export default function MyApplicationDetailPage() {
             setFiles([]);
             await loadApplication();
         } catch (error) {
+            if (import.meta.env.DEV) {
+                console.error('[MyApplicationDetailPage] handleUpload failed', {
+                    applicationId: id,
+                    message: error?.message,
+                    status: error?.response?.status,
+                });
+            }
             setMessage(getApiError(error).message);
         } finally {
             setUploading(false);
@@ -206,6 +230,14 @@ export default function MyApplicationDetailPage() {
             await deleteApplicationDocument(id, documentId);
             await loadApplication();
         } catch (error) {
+            if (import.meta.env.DEV) {
+                console.error('[MyApplicationDetailPage] handleDelete failed', {
+                    applicationId: id,
+                    documentId,
+                    message: error?.message,
+                    status: error?.response?.status,
+                });
+            }
             setMessage(getApiError(error).message);
         } finally {
             setDeletingId(null);

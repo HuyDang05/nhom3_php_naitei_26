@@ -19,6 +19,7 @@ class DashboardController extends Controller
         $completedPlaceholders = implode(', ', array_fill(0, count($completedStatuses), '?'));
         $overdueCondition = Application::overdueConditionSql();
 
+        // leftJoin giữ soft-deleted service_types để đồng bộ với scopeOverdue/withTrashed (tránh lệch metric overdue vs filter ?overdue=1)
         $aggregate = Application::query()
             ->visibleTo($actor)
             ->leftJoin('service_types', 'service_types.id', '=', 'applications.service_type_id')

@@ -28,6 +28,13 @@ export default function MyApplicationsPage() {
             setApplications(response.data.data ?? []);
             setMeta(response.data.meta ?? null);
         } catch (error) {
+            if (import.meta.env.DEV) {
+                console.error('[MyApplicationsPage] loadApplications failed', {
+                    page,
+                    message: error?.message,
+                    status: error?.response?.status,
+                });
+            }
             if (error?.response?.status === 401) {
                 forgetCitizenSession();
                 navigate('/login', {

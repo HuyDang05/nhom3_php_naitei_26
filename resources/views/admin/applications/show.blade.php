@@ -567,7 +567,7 @@
                         <label class="admin-label" for="assign-staff-{{ $application->id }}">Cán bộ xử lý</label>
                         <select id="assign-staff-{{ $application->id }}" class="admin-select" name="staff_id" required>
                             <option value="">Chọn cán bộ…</option>
-                            @foreach ($application->serviceType?->responsibleDepartment?->users?->filter(fn ($user) => $user->isStaff() && $user->canAccessProtectedResources()) ?? [] as $candidate)
+                            @foreach ($assignCandidates as $candidate)
                                 <option value="{{ $candidate->id }}" @selected(old('staff_id') == $candidate->id)>{{ $candidate->name }}</option>
                             @endforeach
                         </select>
@@ -597,7 +597,7 @@
                         <label class="admin-label" for="reassign-staff-{{ $application->id }}">Cán bộ mới <span class="text-danger">*</span></label>
                         <select id="reassign-staff-{{ $application->id }}" class="admin-select" name="staff_id" required>
                             <option value="">Chọn cán bộ khác…</option>
-                            @foreach ($application->serviceType?->responsibleDepartment?->users?->filter(fn ($user) => $user->isStaff() && $user->canAccessProtectedResources() && $user->id !== $application->assigned_staff_id) ?? [] as $candidate)
+                            @foreach ($reassignCandidates as $candidate)
                                 <option value="{{ $candidate->id }}" @selected(old('staff_id') == $candidate->id)>{{ $candidate->name }}</option>
                             @endforeach
                         </select>

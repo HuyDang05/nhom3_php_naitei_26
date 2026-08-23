@@ -203,6 +203,13 @@ export default function ApplyPage() {
                 state: { flash: t('apply.success', { code: application.application_code }) },
             });
         } catch (error) {
+            if (import.meta.env.DEV) {
+                console.error('[ApplyPage] submitApplication failed', {
+                    serviceId: service?.id,
+                    message: error?.message,
+                    status: error?.response?.status,
+                });
+            }
             const apiError = getApiError(error);
 
             if (error?.response?.status === 401) {
