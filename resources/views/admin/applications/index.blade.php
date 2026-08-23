@@ -67,7 +67,7 @@
         </section>
     @endif
 
-    <section class="admin-card" aria-labelledby="application-results-title">
+    <section class="admin-card overflow-visible" aria-labelledby="application-results-title">
         <h2 id="application-results-title" class="sr-only">Kết quả tra cứu hồ sơ</h2>
 
         <form method="GET" action="{{ route('admin.applications.index') }}" class="border-b border-border p-4 sm:p-5">
@@ -203,8 +203,8 @@
                 <h2 class="text-base font-bold text-gray-950">Hồ sơ của tôi</h2>
                 <p class="mt-0.5 text-sm text-gray-600">Các hồ sơ đã được gán cho bạn hoặc nằm trong phạm vi quản lý.</p>
             </div>
-            <div class="admin-table-wrap overflow-x-auto rounded-none border-x-0 border-t-0" tabindex="0" aria-label="Bảng hồ sơ có thể cuộn ngang">
-                <table class="admin-table min-w-[960px] w-full">
+            <div class="admin-table-wrap overflow-x-auto rounded-none border-x-0 border-t-0 border-b-0" tabindex="0" aria-label="Bảng hồ sơ có thể cuộn ngang">
+                <table class="admin-table min-w-[1180px] w-full">
                     <caption class="sr-only">Danh sách hồ sơ trong phạm vi được phép</caption>
                     <thead>
                         <tr>
@@ -215,7 +215,7 @@
                             <th scope="col">Người phụ trách</th>
                             <th scope="col">Trạng thái</th>
                             <th scope="col">Ngày nộp</th>
-                            <th scope="col" aria-label="Thao tác"></th>
+                            <th scope="col" class="sticky right-0 z-20 bg-gray-50 shadow-[-8px_0_16px_rgba(0,0,0,0.06)] min-w-[140px] w-[140px] text-center">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -262,9 +262,9 @@
                                         <x-admin.badge variant="danger">Quá hạn</x-admin.badge>
                                     @endif
                                 </td>
-                                <td>
-                                    <div class="flex justify-end">
-                                        <x-admin.button variant="ghost" :href="route('admin.applications.show', $application)">Chi tiết</x-admin.button>
+                                <td class="sticky right-0 z-10 bg-white shadow-[-8px_0_16px_rgba(0,0,0,0.06)] min-w-[140px] w-[140px]">
+                                    <div class="flex justify-center">
+                                        <x-admin.button variant="primary" class="w-full justify-center shadow-sm" :href="route('admin.applications.show', $application)">Chi tiết</x-admin.button>
                                     </div>
                                 </td>
                             </tr>

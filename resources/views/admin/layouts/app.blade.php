@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', config('app.name'))</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('emblem-vietnam.svg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     @vite(['resources/css/app.css', 'resources/js/admin/app.js'])
 </head>
 <body class="min-h-screen bg-admin-page font-inter text-slate-900">
@@ -140,7 +142,7 @@
         </div>
     </header>
 
-    <main class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8" x-data>
+    <main class="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8" x-data>
         @if (session('success'))
             <div class="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">
                 {{ session('success') }}

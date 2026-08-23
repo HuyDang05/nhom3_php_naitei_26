@@ -59,10 +59,25 @@ class DashboardController extends Controller
             'overdue',
         ])->mapWithKeys(fn (string $key): array => [$key => (int) $aggregate->getAttribute($key)])->all();
 
-        // Staff có thêm số hồ sơ có thể nhận (claimable) — không nằm trong visibleTo nhưng vẫn thao tác được
         $claimableCount = 0;
         if ($actor->isStaff()) {
             $claimableCount = Application::query()->claimableBy($actor)->count();
+        }
+
+        $pendingApplications = collect();
+        if ($actor->isManager() || $actor->isSuperAdmin()) {
+            $pendingApplications = Application::query()
+                ->visibleTo($actor)
+                ->where('status', ApplicationStatus::PendingApproval)
+                ->with([
+                    'serviceType' => fn ($q) => $q->withTrashed()->with(['responsibleDepartment' => fn ($dq) => $dq->withTrashed()]),
+                    'citizen' => fn ($q) => $q->withTrashed(),
+                    'assignedStaff' => fn ($q) => $q->withTrashed(),
+                ])
+                ->orderByDesc('updated_at')
+                ->orderByDesc('id')
+                ->limit(10)
+                ->get();
         }
 
         $metricCards = [
@@ -118,6 +133,6 @@ class DashboardController extends Controller
             ],
         ];
 
-        return view('admin.dashboard', compact('metricCards', 'metrics', 'claimableCount'));
+        return view('admin.dashboard', compact('metricCards', 'metrics', 'claimableCount', 'pendingApplications'));
     }
 }

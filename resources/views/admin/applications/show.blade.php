@@ -387,9 +387,9 @@
 
             {{-- Tài liệu bổ sung --}}
             <div>
-                <h3 class="mb-2 text-xs font-bold uppercase tracking-widest text-amber-600">Tài liệu bổ sung (supplement) — citizen nộp thêm khi được yêu cầu</h3>
+                <h3 class="mb-2 text-xs font-bold uppercase tracking-widest text-amber-600">Tài liệu bổ sung </h3>
                 @if ($supplementDocs->isEmpty())
-                    <p class="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">Chưa có tài liệu bổ sung. Citizen sẽ nộp ở trang chi tiết hồ sơ khi ở trạng thái Chờ bổ sung.</p>
+                    <p class="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">Chưa có tài liệu bổ sung. </p>
                 @else
                     <div class="grid gap-3 md:grid-cols-2">
                         @foreach ($supplementDocs as $document)
@@ -425,7 +425,7 @@
 
             {{-- Tài liệu kết quả --}}
             <div>
-                <h3 class="mb-2 text-xs font-bold uppercase tracking-widest text-emerald-600">Tài liệu kết quả (result) — tách riêng để manager duyệt</h3>
+                <h3 class="mb-2 text-xs font-bold uppercase tracking-widest text-emerald-600">Tài liệu kết quả </h3>
                 @if ($resultDocs->isEmpty())
                     <p class="rounded-lg border border-dashed border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Chưa có tài liệu kết quả. Staff đính kèm khi ở trạng thái Đang xử lý, manager duyệt trước khi gửi cho citizen.</p>
                 @else
@@ -463,10 +463,10 @@
         </div>
     </section>
 
-    <div class="mt-6 grid gap-6 lg:grid-cols-2">
-        <section class="admin-card" aria-labelledby="status-history-title">
+    <div class="mt-6 grid gap-6 lg:grid-cols-2 items-stretch">
+        <section class="admin-card flex flex-col" aria-labelledby="status-history-title">
             <h2 id="status-history-title" class="admin-card-title">Lịch sử trạng thái</h2>
-            <ol class="admin-card-body space-y-4">
+            <ol class="admin-card-body flex-1 space-y-4">
                 @forelse ($application->statusHistories as $history)
                     <li class="flex gap-3">
                         <span class="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
@@ -495,13 +495,11 @@
                     <li class="text-sm text-gray-600">Chưa có lịch sử trạng thái.</li>
                 @endforelse
             </ol>
-            </div>
         </section>
 
-        <section class="admin-card" aria-labelledby="assignments-title">
-            <div class="admin-card-body">
-                <h2 id="assignments-title" class="text-lg font-bold text-gray-950">Lịch sử phân công</h2>
-            <ol class="mt-4 space-y-3">
+        <section class="admin-card flex flex-col" aria-labelledby="assignments-title">
+            <h2 id="assignments-title" class="admin-card-title">Lịch sử phân công</h2>
+            <ol class="admin-card-body flex-1 space-y-3">
                 @forelse ($application->assignments as $assignment)
                     <li class="flex gap-3">
                         <span class="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
@@ -547,7 +545,6 @@
                     <li class="text-sm text-gray-600">Chưa có lịch sử phân công.</li>
                 @endforelse
             </ol>
-            </div>
         </section>
     </div>
 

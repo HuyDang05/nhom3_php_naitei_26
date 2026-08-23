@@ -9,6 +9,7 @@ use App\Models\ServiceCategory;
 use App\Models\ServiceType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ServiceCatalogController extends Controller
 {
@@ -33,7 +34,10 @@ class ServiceCatalogController extends Controller
             $query->where('category_id', $request->input('category_id'));
         }
 
-        $services = $query->paginate($request->input('per_page', 15));
+        $perPage = (int) $request->input('per_page', 15);
+        $perPage = max(1, min($perPage, 100));
+
+        $services = $query->paginate($perPage);
         $payload = ServiceTypeResource::collection($services)->response()->getData();
 
         return ApiResponse::success(
@@ -64,7 +68,12 @@ class ServiceCatalogController extends Controller
      */
     public function categories(): JsonResponse
     {
-        $categories = ServiceCategory::select('id', 'name', 'code', 'description')->get();
+        $categories = Cache::remember('service_catalog_categories_v2', 3600, function () {
+            return ServiceCategory::select('id', 'name', 'code', 'description')
+                ->orderBy('name')
+                ->get()
+                ->toArray();
+        });
 
         return ApiResponse::success(
             'Service categories retrieved successfully',

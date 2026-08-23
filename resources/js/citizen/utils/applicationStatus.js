@@ -4,6 +4,11 @@ const STATUS_PRESENTATION = {
         descriptionKey: 'status.received.description',
         tone: 'c-neutral',
     },
+    assigned: {
+        labelKey: 'status.assigned.label',
+        descriptionKey: 'status.assigned.description',
+        tone: 'c-info',
+    },
     processing: {
         labelKey: 'status.processing.label',
         descriptionKey: 'status.processing.description',
@@ -12,6 +17,11 @@ const STATUS_PRESENTATION = {
     supplement_required: {
         labelKey: 'status.supplement_required.label',
         descriptionKey: 'status.supplement_required.description',
+        tone: 'c-warning',
+    },
+    pending_approval: {
+        labelKey: 'status.pending_approval.label',
+        descriptionKey: 'status.pending_approval.description',
         tone: 'c-warning',
     },
     approved: {

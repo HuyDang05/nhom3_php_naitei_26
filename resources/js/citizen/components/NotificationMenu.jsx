@@ -65,11 +65,24 @@ export default function NotificationMenu({ enabled = false }) {
         }
 
         const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
+
             loadNotifications({ notifyPages: true, showLoading: false });
-        }, 5000);
+        }, 30000);
+
+        function handleVisibility() {
+            if (document.visibilityState === 'visible') {
+                loadNotifications({ notifyPages: true, showLoading: false });
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibility);
 
         return () => {
             window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibility);
         };
     }, [enabled]);
 

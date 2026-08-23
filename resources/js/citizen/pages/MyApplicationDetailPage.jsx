@@ -19,6 +19,61 @@ import { statusDescription, statusLabel, transitionDescription } from '../utils/
 import { formatBytes, formatDateTime } from '../utils/format';
 import { normalizeDocumentRequirements } from '../utils/schema';
 
+const FIELD_LABELS = {
+    ho_ten: 'Họ và tên',
+    ngay_sinh: 'Ngày sinh',
+    so_cccd: 'Số CCCD',
+    dia_chi_thuong_tru: 'Địa chỉ thường trú',
+    ly_do_xin_xac_nhan: 'Lý do xin xác nhận',
+    cam_ket_thong_tin: 'Cam kết thông tin đúng sự thật',
+    ten_tre: 'Họ tên trẻ',
+    ngay_sinh_tre: 'Ngày sinh của trẻ',
+    gioi_tinh: 'Giới tính',
+    noi_sinh: 'Nơi sinh',
+    ho_ten_cha: 'Họ tên cha',
+    ho_ten_me: 'Họ tên mẹ',
+    so_cccd_nguoi_khai: 'Số CCCD người khai',
+    cam_ket: 'Cam kết',
+    muc_dich_su_dung: 'Mục đích sử dụng',
+    cam_ket_doc_than: 'Cam kết độc thân',
+    dien_tich_xay_dung: 'Diện tích xây dựng (m²)',
+    so_tang: 'Số tầng',
+    chieu_cao_cong_trinh: 'Chiều cao công trình',
+    dia_chi_cong_trinh: 'Địa chỉ công trình',
+    so_to_so_thua: 'Số tờ - số thửa',
+    cam_ket_pccc: 'Cam kết an toàn PCCC',
+    hang_muc_sua_chua: 'Hạng mục sửa chữa',
+    dien_tich_sua_chua: 'Diện tích sửa chữa',
+    du_kien_thoi_gian: 'Thời gian dự kiến',
+    ten_cong_trinh: 'Tên công trình',
+    dia_diem: 'Địa điểm',
+    quy_mo_dien_tich: 'Quy mô diện tích',
+    don_vi_thiet_ke_pccc: 'Đơn vị thiết kế PCCC',
+    so_to: 'Số tờ',
+    so_thua: 'Số thửa',
+    dia_chi_thua_dat: 'Địa chỉ thửa đất',
+    cam_ket_su_dung: 'Cam kết sử dụng',
+    ho_ten_hoc_sinh: 'Họ tên học sinh',
+    ngay_sinh_hoc_sinh: 'Ngày sinh học sinh',
+    truong_dang_ky: 'Trường đăng ký',
+    lop_dang_ky: 'Lớp đăng ký',
+    ho_ten_phu_huynh: 'Họ tên phụ huynh',
+    so_dien_thoai: 'Số điện thoại',
+    cam_ket_hoc_tuyen: 'Cam kết đúng tuyến',
+    doi_tuong: 'Đối tượng',
+    so_bhyt: 'Số thẻ BHYT',
+    dia_chi: 'Địa chỉ',
+    loai_vac_xin: 'Loại vắc xin',
+    ngay_tiem: 'Ngày tiêm',
+    co_so_tiem: 'Cơ sở tiêm',
+    full_name: 'Họ và tên',
+};
+
+function fieldLabel(key) {
+    if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+    return String(key).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function MyApplicationDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -110,8 +165,10 @@ export default function MyApplicationDetailPage() {
         }
 
         const interval = window.setInterval(() => {
-            loadApplication();
-        }, 30000);
+            if (document.visibilityState === 'visible') {
+                loadApplication();
+            }
+        }, 60000);
 
         const handleVisibility = () => {
             if (document.visibilityState === 'visible') {
@@ -119,28 +176,33 @@ export default function MyApplicationDetailPage() {
             }
         };
 
-        const handleFocus = () => loadApplication();
-
-        window.addEventListener('focus', handleFocus);
-        document.addEventListener('visibilitychange', handleVisibility);
+        window.addEventListener('visibilitychange', handleVisibility);
 
         return () => {
             window.clearInterval(interval);
-            window.removeEventListener('focus', handleFocus);
             document.removeEventListener('visibilitychange', handleVisibility);
         };
     }, [application?.status, id]);
 
     useEffect(() => {
+        let lastRefreshAt = 0;
+
         function refreshApplication(event) {
             const notifications = event.detail?.notifications ?? [];
             const hasCurrentApplicationUpdate = notifications.some((notification) => (
                 String(notification.application_id) === String(id)
             ));
 
-            if (hasCurrentApplicationUpdate) {
-                loadApplication();
+            if (!hasCurrentApplicationUpdate) {
+                return;
             }
+
+            const now = Date.now();
+            if (now - lastRefreshAt < 10000) {
+                return;
+            }
+            lastRefreshAt = now;
+            loadApplication();
         }
 
         window.addEventListener('citizen-notifications:updated', refreshApplication);
@@ -169,8 +231,17 @@ export default function MyApplicationDetailPage() {
         setUploading(true);
 
         try {
-            for (const entry of files) {
-                await uploadApplicationDocument(id, entry.file, entry.requirementCode || undefined);
+            const results = await Promise.allSettled(
+                files.map((entry) => uploadApplicationDocument(id, entry.file, entry.requirementCode || undefined)),
+            );
+            const failedCount = results.filter((result) => result.status === 'rejected').length;
+
+            if (failedCount > 0) {
+                const firstError = results.find((result) => result.status === 'rejected')?.reason;
+                const apiMessage = firstError ? getApiError(firstError).message : '';
+                setMessage(apiMessage || t('applications.uploadPartial', { count: failedCount }));
+                await loadApplication();
+                return;
             }
 
             setFiles([]);
@@ -223,7 +294,7 @@ export default function MyApplicationDetailPage() {
         return (
             <main className="min-h-screen bg-surface flex flex-col font-sans">
                 <Header />
-                <div className="flex-1 w-full max-w-[1101px] mx-auto bg-white border-x border-gray-200 flex items-center justify-center py-20 text-gray-500">
+                <div className="flex-1 w-full max-w-[1280px] mx-auto bg-white border-x border-gray-200 flex items-center justify-center py-20 text-gray-500">
                     {t('common.loading')}
                 </div>
                 <Footer />
@@ -235,7 +306,7 @@ export default function MyApplicationDetailPage() {
         return (
             <main className="min-h-screen bg-surface flex flex-col font-sans">
                 <Header />
-                <div className="flex-1 w-full max-w-[1101px] mx-auto bg-white border-x border-gray-200 flex flex-col items-center justify-center py-20">
+                <div className="flex-1 w-full max-w-[1280px] mx-auto bg-white border-x border-gray-200 flex flex-col items-center justify-center py-20">
                     <p className="text-gray-600">{t('applications.detailLoadError')}</p>
                     <button type="button" className="mt-4 text-sm font-semibold text-primary hover:underline" onClick={() => { setLoading(true); loadApplication(); }}>
                         {t('applications.tryAgain')}
@@ -277,15 +348,15 @@ export default function MyApplicationDetailPage() {
         <main className="min-h-screen bg-surface flex flex-col font-sans">
             <Header />
 
-            <div className="flex-1 w-full max-w-[1101px] mx-auto bg-white border-x border-gray-200 flex flex-col">
-                <div className="px-10 py-6 border-b border-gray-100">
+            <div className="flex-1 w-full max-w-[1280px] mx-auto bg-white border-x border-gray-200 flex flex-col">
+                <div className="px-6 sm:px-10 py-6 border-b border-gray-100">
                     <Link className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-blue-600 transition" to="/applications">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
                         {t('applications.backToMine')}
                     </Link>
                 </div>
 
-                <div className="flex-1 w-full max-w-3xl mx-auto px-10 py-8">
+                <div className="flex-1 w-full max-w-5xl mx-auto px-6 sm:px-10 py-8">
                     {flash && (
                         <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-success">
                             {flash}
@@ -321,7 +392,7 @@ export default function MyApplicationDetailPage() {
                                 <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                                     {formEntries.map(([key, value]) => (
                                         <div key={key}>
-                                            <dt className="text-[13px] font-semibold text-gray-400 uppercase tracking-widest">{key}</dt>
+                                            <dt className="text-[13px] font-semibold text-gray-400 uppercase tracking-widest">{fieldLabel(key)}</dt>
                                             <dd className="mt-1 text-[15px] font-medium text-gray-900 break-words">{String(value ?? '—')}</dd>
                                         </div>
                                     ))}
@@ -473,7 +544,32 @@ export default function MyApplicationDetailPage() {
                         <section className="mt-8">
                             <h2 className="mb-4 text-[18px] font-bold text-gray-900">{t('applications.uploadMore')}</h2>
 
-                            {missingSlots.length > 0 ? (
+                            {application?.status === 'supplement_required' ? (
+                                <div className="space-y-4">
+                                    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                                        <p className="mb-3 text-[15px] font-semibold text-gray-900">{t('applications.supplementUploadTitle') ?? 'Nộp tài liệu bổ sung'}</p>
+                                        <p className="mb-4 text-sm text-gray-600">{t('applications.supplementPendingHelp')}</p>
+                                        <DocumentUploader
+                                            requirement={null}
+                                            files={files}
+                                            onAdd={(next) => addFiles('', next)}
+                                            onRemove={(file) => removeFile(files.find((entry) => entry.file === file))}
+                                        />
+                                    </div>
+                                    {files.length > 0 && (
+                                        <div className="flex justify-end">
+                                            <button
+                                                type="button"
+                                                disabled={uploading}
+                                                className="btn-primary rounded-xl px-7 py-3 text-[15px]"
+                                                onClick={handleUpload}
+                                            >
+                                                {uploading ? t('applications.uploading') : t('applications.uploadSupplement')}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : missingSlots.length > 0 ? (
                                 <div className="space-y-6">
                                     {missingSlots.map((requirement) => (
                                         <div key={requirement.code} className="rounded-2xl border border-gray-200 bg-white p-5">
@@ -505,9 +601,7 @@ export default function MyApplicationDetailPage() {
                                 </div>
                             ) : (
                                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-5 text-sm text-gray-600">
-                                    {application.status === 'supplement_required'
-                                        ? t('applications.supplementComplete')
-                                        : t('applications.noSupplementNeeded')}
+                                    {t('applications.noSupplementNeeded')}
                                 </div>
                             )}
                         </section>

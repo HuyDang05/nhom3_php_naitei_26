@@ -26,9 +26,26 @@ export default function ServiceCatalog() {
 
     useEffect(() => {
         let isMounted = true;
-        fetchCategories().then(res => {
-            if (isMounted) setCategories(res.data.data);
-        });
+        fetchCategories()
+            .then((res) => {
+                if (!isMounted) {
+                    return;
+                }
+
+                const raw = res.data?.data;
+                const list = Array.isArray(raw)
+                    ? raw
+                    : Array.isArray(raw?.data)
+                        ? raw.data
+                        : [];
+
+                setCategories(list);
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setCategories([]);
+                }
+            });
         return () => { isMounted = false; };
     }, []);
 
@@ -81,7 +98,7 @@ export default function ServiceCatalog() {
                                 <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                                 {t('services.allCategories')}
                             </button>
-                            {categories.map((category) => localizeCategory(category, language)).map(cat => (
+                            {(Array.isArray(categories) ? categories : []).map((category) => localizeCategory(category, language)).map(cat => (
                                 <button
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat)}

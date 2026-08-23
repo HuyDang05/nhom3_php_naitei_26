@@ -16,8 +16,17 @@ class NotificationController extends Controller
     {
         $filter = $request->validated('filter', 'all');
 
+        // Ẩn các event nội bộ leak cho citizen: assigned, pending_approval, result_document_available
+        // notifications.data là TEXT chứa JSON (migration text), cần cast ::jsonb trước khi dùng ->>
+        $hiddenEvents = [
+            'application.assigned',
+            'application.pending_approval',
+            'application.result_document_available',
+        ];
+
         $query = $request->user()
             ->notifications()
+            ->whereRaw("(data::jsonb)->>'event' NOT IN (?, ?, ?)", $hiddenEvents)
             ->when($filter === 'unread', fn ($notificationQuery) => $notificationQuery->whereNull('read_at'))
             ->when($filter === 'read', fn ($notificationQuery) => $notificationQuery->whereNotNull('read_at'))
             ->latest();
@@ -28,7 +37,10 @@ class NotificationController extends Controller
         return ApiResponse::success(
             'Lấy danh sách thông báo thành công.',
             [
-                'unread_count' => $request->user()->unreadNotifications()->count(),
+                'unread_count' => $request->user()
+                    ->unreadNotifications()
+                    ->whereRaw("(data::jsonb)->>'event' NOT IN (?, ?, ?)", $hiddenEvents)
+                    ->count(),
                 'notifications' => $payload->data,
                 'links' => $payload->links,
                 'meta' => $payload->meta,
@@ -58,7 +70,7 @@ class NotificationController extends Controller
 
     public function markAllAsRead(Request $request): JsonResponse
     {
-        $request->user()->unreadNotifications->markAsRead();
+        $request->user()->unreadNotifications()->update(['read_at' => now()]);
 
         return ApiResponse::success(
             'Đã đánh dấu tất cả thông báo là đã đọc.',

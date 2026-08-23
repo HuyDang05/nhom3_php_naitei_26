@@ -183,13 +183,10 @@ export default function ApplyPage() {
             let uploadFailures = 0;
 
             if (files.length > 0) {
-                for (const entry of files) {
-                    try {
-                        await uploadApplicationDocument(application.id, entry.file, entry.requirementCode || undefined);
-                    } catch {
-                        uploadFailures += 1;
-                    }
-                }
+                const results = await Promise.allSettled(
+                    files.map((entry) => uploadApplicationDocument(application.id, entry.file, entry.requirementCode || undefined)),
+                );
+                uploadFailures = results.filter((result) => result.status === 'rejected').length;
             }
 
             if (uploadFailures > 0) {
