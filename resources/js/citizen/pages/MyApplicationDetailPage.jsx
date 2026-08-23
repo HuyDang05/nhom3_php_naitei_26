@@ -17,62 +17,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { localizeService } from '../i18n/content';
 import { statusDescription, statusLabel, transitionDescription } from '../utils/applicationStatus';
 import { formatBytes, formatDateTime } from '../utils/format';
-import { normalizeDocumentRequirements } from '../utils/schema';
-
-const FIELD_LABELS = {
-    ho_ten: 'Họ và tên',
-    ngay_sinh: 'Ngày sinh',
-    so_cccd: 'Số CCCD',
-    dia_chi_thuong_tru: 'Địa chỉ thường trú',
-    ly_do_xin_xac_nhan: 'Lý do xin xác nhận',
-    cam_ket_thong_tin: 'Cam kết thông tin đúng sự thật',
-    ten_tre: 'Họ tên trẻ',
-    ngay_sinh_tre: 'Ngày sinh của trẻ',
-    gioi_tinh: 'Giới tính',
-    noi_sinh: 'Nơi sinh',
-    ho_ten_cha: 'Họ tên cha',
-    ho_ten_me: 'Họ tên mẹ',
-    so_cccd_nguoi_khai: 'Số CCCD người khai',
-    cam_ket: 'Cam kết',
-    muc_dich_su_dung: 'Mục đích sử dụng',
-    cam_ket_doc_than: 'Cam kết độc thân',
-    dien_tich_xay_dung: 'Diện tích xây dựng (m²)',
-    so_tang: 'Số tầng',
-    chieu_cao_cong_trinh: 'Chiều cao công trình',
-    dia_chi_cong_trinh: 'Địa chỉ công trình',
-    so_to_so_thua: 'Số tờ - số thửa',
-    cam_ket_pccc: 'Cam kết an toàn PCCC',
-    hang_muc_sua_chua: 'Hạng mục sửa chữa',
-    dien_tich_sua_chua: 'Diện tích sửa chữa',
-    du_kien_thoi_gian: 'Thời gian dự kiến',
-    ten_cong_trinh: 'Tên công trình',
-    dia_diem: 'Địa điểm',
-    quy_mo_dien_tich: 'Quy mô diện tích',
-    don_vi_thiet_ke_pccc: 'Đơn vị thiết kế PCCC',
-    so_to: 'Số tờ',
-    so_thua: 'Số thửa',
-    dia_chi_thua_dat: 'Địa chỉ thửa đất',
-    cam_ket_su_dung: 'Cam kết sử dụng',
-    ho_ten_hoc_sinh: 'Họ tên học sinh',
-    ngay_sinh_hoc_sinh: 'Ngày sinh học sinh',
-    truong_dang_ky: 'Trường đăng ký',
-    lop_dang_ky: 'Lớp đăng ký',
-    ho_ten_phu_huynh: 'Họ tên phụ huynh',
-    so_dien_thoai: 'Số điện thoại',
-    cam_ket_hoc_tuyen: 'Cam kết đúng tuyến',
-    doi_tuong: 'Đối tượng',
-    so_bhyt: 'Số thẻ BHYT',
-    dia_chi: 'Địa chỉ',
-    loai_vac_xin: 'Loại vắc xin',
-    ngay_tiem: 'Ngày tiêm',
-    co_so_tiem: 'Cơ sở tiêm',
-    full_name: 'Họ và tên',
-};
-
-function fieldLabel(key) {
-    if (FIELD_LABELS[key]) return FIELD_LABELS[key];
-    return String(key).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import { normalizeDocumentRequirements, normalizeSchemaFields } from '../utils/schema';
 
 export default function MyApplicationDetailPage() {
     const { id } = useParams();
@@ -324,6 +269,9 @@ export default function MyApplicationDetailPage() {
     const serviceRequirements = normalizeDocumentRequirements({
         document_requirements: localizedService?.document_requirements,
     });
+    const serviceFields = normalizeSchemaFields(localizedService);
+    const fieldLabelMap = Object.fromEntries(serviceFields.map((f) => [f.name, f.label]));
+    const getFieldLabel = (key) => fieldLabelMap[key] ?? String(key).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const requirementByCode = Object.fromEntries(serviceRequirements.map((requirement) => [requirement.code, requirement]));
 
     const documentGroups = [];
@@ -392,7 +340,7 @@ export default function MyApplicationDetailPage() {
                                 <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                                     {formEntries.map(([key, value]) => (
                                         <div key={key}>
-                                            <dt className="text-[13px] font-semibold text-gray-400 uppercase tracking-widest">{fieldLabel(key)}</dt>
+                                            <dt className="text-[13px] font-semibold text-gray-400 uppercase tracking-widest">{getFieldLabel(key)}</dt>
                                             <dd className="mt-1 text-[15px] font-medium text-gray-900 break-words">{String(value ?? '—')}</dd>
                                         </div>
                                     ))}

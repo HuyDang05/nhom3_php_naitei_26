@@ -23,7 +23,7 @@ class ApplicationController extends Controller
             $request->validated('form_data', []),
         );
 
-        $application->load(['serviceType', 'documents']);
+        $application->load(['serviceType' => fn ($q) => $q->withTrashed(), 'historicalServiceType', 'documents']);
 
         return ApiResponse::success(
             'Application submitted successfully',
@@ -36,7 +36,7 @@ class ApplicationController extends Controller
     {
         $applications = Application::query()
             ->where('citizen_id', $request->user()->id)
-            ->with(['serviceType'])
+            ->with(['serviceType' => fn ($q) => $q->withTrashed(), 'historicalServiceType'])
             ->latest('submitted_at')
             ->paginate(min(max((int) $request->integer('per_page', 15), 1), 100));
 
@@ -57,7 +57,8 @@ class ApplicationController extends Controller
         $this->authorize('view', $application);
 
         $application->load([
-            'serviceType',
+            'serviceType' => fn ($q) => $q->withTrashed(),
+            'historicalServiceType',
             'documents',
             'assignedStaff',
             'statusHistories.changedBy',

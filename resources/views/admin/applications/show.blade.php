@@ -141,10 +141,14 @@
                 <h2 id="submitted-data-title" class="admin-card-title">Dữ liệu đã khai</h2>
                 <div class="admin-card-body">
                     @if (filled($application->form_data))
+                        @php
+                            $fieldLabels = collect(App\Support\ServiceSchema::normalizeFormSchema($service?->form_schema ?? []))->pluck('label', 'name');
+                        @endphp
                         <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             @foreach ($application->form_data as $key => $value)
+                                @php $label = $fieldLabels->get((string) $key) ?? str_replace('_', ' ', ucwords(str_replace('_', ' ', (string) $key))); @endphp
                                 <div class="min-w-0 overflow-hidden rounded-lg border border-border bg-gray-50 px-3 py-2">
-                                    <dt class="truncate text-[13px] font-medium text-gray-500" title="{{ (string) $key }}">{{ str_replace('_', ' ', (string) $key) }}</dt>
+                                    <dt class="truncate text-[13px] font-medium text-gray-500" title="{{ $label }}">{{ $label }}</dt>
                                     <dd class="mt-1 break-all text-sm font-medium text-gray-900 [overflow-wrap:anywhere]">
                                         {{ is_scalar($value) || $value === null
                                             ? ($value ?? '—')

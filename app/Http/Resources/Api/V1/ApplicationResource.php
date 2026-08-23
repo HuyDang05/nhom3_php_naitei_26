@@ -44,9 +44,22 @@ class ApplicationResource extends JsonResource
             'application_code' => $this->application_code,
             'service_type' => [
                 'id' => $this->service_type_id,
-                'name' => $this->whenLoaded('serviceType', fn () => $this->serviceType->name),
-                'code' => $this->whenLoaded('serviceType', fn () => $this->serviceType->code),
-                'document_requirements' => $this->whenLoaded('serviceType', fn () => ServiceSchema::normalizeDocumentRequirements($this->serviceType->document_requirements)),
+                'name' => $this->when(
+                    $this->relationLoaded('serviceType') || $this->relationLoaded('historicalServiceType'),
+                    fn () => ($this->serviceType ?? $this->historicalServiceType)?->name
+                ),
+                'code' => $this->when(
+                    $this->relationLoaded('serviceType') || $this->relationLoaded('historicalServiceType'),
+                    fn () => ($this->serviceType ?? $this->historicalServiceType)?->code
+                ),
+                'form_schema' => $this->when(
+                    $this->relationLoaded('serviceType') || $this->relationLoaded('historicalServiceType'),
+                    fn () => ServiceSchema::normalizeFormSchema(($this->serviceType ?? $this->historicalServiceType)?->form_schema)
+                ),
+                'document_requirements' => $this->when(
+                    $this->relationLoaded('serviceType') || $this->relationLoaded('historicalServiceType'),
+                    fn () => ServiceSchema::normalizeDocumentRequirements(($this->serviceType ?? $this->historicalServiceType)?->document_requirements)
+                ),
             ],
             'status' => $this->status->value,
             'form_data' => $this->form_data,
