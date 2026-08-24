@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
         $middleware->statefulApi();
         $middleware->redirectGuestsTo(fn ($request): string => $request->is('admin/*') || $request->is('admin')
             ? route('admin.login')
