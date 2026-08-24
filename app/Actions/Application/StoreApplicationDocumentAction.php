@@ -11,9 +11,22 @@ use Illuminate\Http\UploadedFile;
 
 class StoreApplicationDocumentAction
 {
-    public function execute(User $uploader, Application $application, UploadedFile $file, ?string $requirementCode = null): ApplicationDocument
-    {
-        $path = $file->store('applications/'.$application->id, 'local');
+    public function execute(
+        User $uploader,
+        Application $application,
+        UploadedFile $file,
+        ?string $requirementCode = null,
+    ): ApplicationDocument {
+        $disk = (string) config('filesystems.default');
+
+        $path = $file->store(
+            'applications/'.$application->id,
+            $disk,
+        );
+
+        if ($path === false) {
+            throw new \RuntimeException('Unable to store application document.');
+        }
 
         $kind = $application->status === ApplicationStatus::SupplementRequired
             ? DocumentKind::Supplement
@@ -25,7 +38,7 @@ class StoreApplicationDocumentAction
             'document_kind' => $kind,
             'original_name' => $file->getClientOriginalName(),
             'requirement_code' => $requirementCode,
-            'disk' => 'local',
+            'disk' => $disk,
             'path' => $path,
             'mime_type' => $file->getMimeType(),
             'file_size' => $file->getSize(),

@@ -21,12 +21,26 @@ final readonly class StoreResultDocumentAction
         private ApplicationActivityLogger $activityLogger,
     ) {}
 
-    public function handle(Application $application, User $actor, UploadedFile $file, ?string $requirementCode = null): ApplicationDocument
-    {
-        return DB::transaction(function () use ($application, $actor, $file, $requirementCode): ApplicationDocument {
-            $locked = Application::query()->lockForUpdate()->findOrFail($application->getKey());
+    public function handle(
+        Application $application,
+        User $actor,
+        UploadedFile $file,
+        ?string $requirementCode = null,
+    ): ApplicationDocument {
+        return DB::transaction(function () use (
+            $application,
+            $actor,
+            $file,
+            $requirementCode,
+        ): ApplicationDocument {
+            $locked = Application::query()
+                ->lockForUpdate()
+                ->findOrFail($application->getKey());
 
-            Gate::forUser($actor)->authorize('uploadResultDocument', $locked);
+            Gate::forUser($actor)->authorize(
+                'uploadResultDocument',
+                $locked,
+            );
 
             if ($locked->status !== ApplicationStatus::Processing) {
                 throw ValidationException::withMessages([
@@ -34,7 +48,16 @@ final readonly class StoreResultDocumentAction
                 ]);
             }
 
-            $path = $file->store('applications/'.$locked->getKey(), 'local');
+            $disk = (string) config('filesystems.default');
+
+            $path = $file->store(
+                'applications/'.$locked->getKey(),
+                $disk,
+            );
+
+            if ($path === false) {
+                throw new \RuntimeException('Unable to store result document.');
+            }
 
             $document = ApplicationDocument::query()->create([
                 'application_id' => $locked->getKey(),
@@ -42,14 +65,23 @@ final readonly class StoreResultDocumentAction
                 'document_kind' => DocumentKind::Result,
                 'original_name' => $file->getClientOriginalName(),
                 'requirement_code' => $requirementCode,
-                'disk' => 'local',
+                'disk' => $disk,
                 'path' => $path,
                 'mime_type' => $file->getMimeType(),
                 'file_size' => $file->getSize(),
             ]);
 
-            $this->activityLogger->recordResultDocument($locked, $actor, $document);
-            $this->workflowNotifier->resultDocumentAvailable($locked, $document, $actor);
+            $this->activityLogger->recordResultDocument(
+                $locked,
+                $actor,
+                $document,
+            );
+
+            $this->workflowNotifier->resultDocumentAvailable(
+                $locked,
+                $document,
+                $actor,
+            );
 
             return $document;
         });
