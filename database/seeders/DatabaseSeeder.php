@@ -380,11 +380,12 @@ class DatabaseSeeder extends Seeder
     /** @param array<string, mixed> $attributes */
     private function createUser(UserRole $role, array $attributes): User
     {
-        return User::factory()->withRole($role)->create([
+        return User::query()->create([
             'name' => $attributes['name'],
             'email' => $attributes['email'],
             'password' => 'password',
-            'citizen_id' => $attributes['citizen_id'] ?? null,
+            'role' => $role,
+            'citizen_id' => $attributes['citizen_id'],
             'date_of_birth' => $attributes['date_of_birth'],
             'gender' => $attributes['gender'],
             'phone' => $attributes['phone'],
