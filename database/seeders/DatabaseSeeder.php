@@ -378,18 +378,13 @@ class DatabaseSeeder extends Seeder
     }
 
     /** @param array<string, mixed> $attributes */
+    /** @param array<string, mixed> $attributes */
     private function createUser(UserRole $role, array $attributes): User
     {
         return User::query()->create([
-            'name' => $attributes['name'],
-            'email' => $attributes['email'],
+            ...$attributes,
             'password' => 'password',
             'role' => $role,
-            'citizen_id' => $attributes['citizen_id'],
-            'date_of_birth' => $attributes['date_of_birth'],
-            'gender' => $attributes['gender'],
-            'phone' => $attributes['phone'],
-            'address' => $attributes['address'],
             'email_notifications_enabled' => $role === UserRole::Citizen,
             'is_active' => true,
         ]);
